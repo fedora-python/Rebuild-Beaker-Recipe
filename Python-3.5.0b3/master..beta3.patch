@@ -1,0 +1,352 @@
+diff --git a/00055-systemtap.patch b/00055-systemtap.patch
+index 3200c15..5d92895 100644
+--- a/00055-systemtap.patch
++++ b/00055-systemtap.patch
+@@ -650,7 +650,7 @@ diff -up Python-3.3.0rc2/Makefile.pre.in.systemtap Python-3.3.0rc2/Makefile.pre.
+ +Python/ceval.o: $(OPCODETARGETS_H) $(srcdir)/Python/ceval_gil.h \
+ +			$(srcdir)/Python/ceval_systemtap.h @SYSTEMTAPDEPS@
+  
+- Python/frozen.o: Python/importlib.h
++ Python/frozen.o: Python/importlib.h Python/importlib_external.h
+  
+ @@ -724,6 +726,13 @@ Objects/typeobject.o: $(srcdir)/Objects/
+  Objects/typeslots.inc: $(srcdir)/Include/typeslots.h $(srcdir)/Objects/typeslots.py
+@@ -669,26 +669,11 @@ diff -up Python-3.3.0rc2/Makefile.pre.in.systemtap Python-3.3.0rc2/Makefile.pre.
+ @@ -1345,6 +1354,7 @@ clean: pycremoval
+  	-rm -f pybuilddir.txt
+  	-rm -f Lib/lib2to3/*Grammar*.pickle
+- 	-rm -f Modules/_testembed Modules/_freeze_importlib
++ 	-rm -f Programs/_testembed Programs/_freeze_importlib
+ +	-rm -f $(srcdir)/Python/pysystemtap.h
+  
+  profile-removal:
+  	find . -name '*.gc??' -exec rm -f {} ';'
+-diff -up Python-3.3.0rc2/Misc/NEWS.systemtap Python-3.3.0rc2/Misc/NEWS
+---- Python-3.3.0rc2/Misc/NEWS.systemtap	2012-09-09 05:11:05.000000000 -0400
+-+++ Python-3.3.0rc2/Misc/NEWS	2012-09-10 09:17:21.120511781 -0400
+-@@ -619,6 +619,11 @@ Core and Builtins
+- 
+- - Issue #15038: Optimize python Locks on Windows.
+- 
+-+- Issue #14776: Added a new --with-systemtap configure-time option, which adds
+-+  static markers for SystemTap so that SystemTap scripts can observe bytecode
+-+  frames being entered and exited and so generate reports on what Python code
+-+  is being exectuted.
+-+
+- Library
+- -------
+- 
+ diff -up Python-3.3.0rc2/pyconfig.h.in.systemtap Python-3.3.0rc2/pyconfig.h.in
+ --- Python-3.3.0rc2/pyconfig.h.in.systemtap	2012-09-09 05:11:14.000000000 -0400
+ +++ Python-3.3.0rc2/pyconfig.h.in	2012-09-10 09:17:21.120511781 -0400
+diff --git a/00102-lib64.patch b/00102-lib64.patch
+index db5fd95..28ccec0 100644
+--- a/00102-lib64.patch
++++ b/00102-lib64.patch
+@@ -35,7 +35,7 @@
+          else:
+ --- Python-3.4.0b1/Lib/site.py.lib64	2013-11-24 21:36:54.000000000 +0100
+ +++ Python-3.4.0b1/Lib/site.py	2013-11-27 11:10:43.822150773 +0100
+-@@ -304,12 +304,16 @@
++@@ -304,11 +304,15 @@
+          seen.add(prefix)
+  
+          if os.sep == '/':
+@@ -45,7 +45,6 @@
+              sitepackages.append(os.path.join(prefix, "lib",
+                                          "python" + sys.version[:3],
+                                          "site-packages"))
+-             sitepackages.append(os.path.join(prefix, "lib", "site-python"))
+          else:
+              sitepackages.append(prefix)
+ +            sitepackages.append(os.path.join(prefix, "lib64", "site-packages"))
+@@ -84,25 +83,17 @@
+          'data': '{userbase}',
+ --- Python-3.4.0b1/Lib/test/test_site.py.lib64	2013-11-24 21:36:55.000000000 +0100
+ +++ Python-3.4.0b1/Lib/test/test_site.py	2013-11-27 11:10:43.822150773 +0100
+-@@ -244,12 +244,15 @@
+-             self.assertEqual(dirs[2], wanted)
++@@ -244,8 +244,8 @@
++             self.assertEqual(dirs[1], wanted)
+          elif os.sep == '/':
+              # OS X non-framwework builds, Linux, FreeBSD, etc
+--            self.assertEqual(len(dirs), 2)
++-            self.assertEqual(len(dirs), 1)
+ -            wanted = os.path.join('xoxo', 'lib', 'python' + sys.version[:3],
+ +            self.assertEqual(len(dirs), 3)
+ +            wanted = os.path.join('xoxo', 'lib64', 'python' + sys.version[:3],
+                                    'site-packages')
+              self.assertEqual(dirs[0], wanted)
+--            wanted = os.path.join('xoxo', 'lib', 'site-python')
+-+            wanted = os.path.join('xoxo', 'lib', 'python' + sys.version[:3],
+-+                                  'site-packages')
+-             self.assertEqual(dirs[1], wanted)
+-+            wanted = os.path.join('xoxo', 'lib', 'site-python')
+-+            self.assertEqual(dirs[2], wanted)
+          else:
+-             # other platforms
+-             self.assertEqual(len(dirs), 2)
+ --- Python-3.4.0b1/Makefile.pre.in.lib64	2013-11-27 11:10:43.814150786 +0100
+ +++ Python-3.4.0b1/Makefile.pre.in	2013-11-27 11:10:43.823150771 +0100
+ @@ -115,7 +115,7 @@
+@@ -128,11 +119,11 @@
+  
+  #ifndef LANDMARK
+ @@ -498,7 +498,7 @@
+-     _pythonpath = _Py_char2wchar(PYTHONPATH, NULL);
+-     _prefix = _Py_char2wchar(PREFIX, NULL);
+-     _exec_prefix = _Py_char2wchar(EXEC_PREFIX, NULL);
+--    lib_python = _Py_char2wchar("lib/python" VERSION, NULL);
+-+    lib_python = _Py_char2wchar("lib64/python" VERSION, NULL);
++     _pythonpath = Py_DecodeLocale(PYTHONPATH, NULL);
++     _prefix = Py_DecodeLocale(PREFIX, NULL);
++     _exec_prefix = Py_DecodeLocale(EXEC_PREFIX, NULL);
++-    lib_python = Py_DecodeLocale("lib/python" VERSION, NULL);
+++    lib_python = Py_DecodeLocale("lib64/python" VERSION, NULL);
+  
+      if (!_pythonpath || !_prefix || !_exec_prefix || !lib_python) {
+          Py_FatalError(
+diff --git a/00111-no-static-lib.patch b/00111-no-static-lib.patch
+index bd1bc40..6b662ca 100644
+--- a/00111-no-static-lib.patch
++++ b/00111-no-static-lib.patch
+@@ -1,13 +1,13 @@
+ diff -up cpython-59223da36dec/Makefile.pre.in.no-static-lib cpython-59223da36dec/Makefile.pre.in
+ --- cpython-59223da36dec/Makefile.pre.in.no-static-lib	2012-08-07 16:43:43.296466422 -0400
+ +++ cpython-59223da36dec/Makefile.pre.in	2012-08-07 16:44:13.299464371 -0400
+-@@ -464,7 +464,7 @@ coverage:
++@@ -550,7 +550,7 @@ clinic: $(BUILDPYTHON)
+  	$(RUNSHARED) $(PYTHON_FOR_BUILD) ./Tools/clinic/clinic.py --make
+  
+  # Build the interpreter
+--$(BUILDPYTHON):	Modules/python.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
+-+$(BUILDPYTHON):	Modules/python.o $(LDLIBRARY) $(PY3LIBRARY)
+- 	$(LINKCC) $(PY_LDFLAGS) $(LINKFORSHARED) -o $@ Modules/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
++-$(BUILDPYTHON):	Programs/python.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
+++$(BUILDPYTHON): Modules/python.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
++ 	$(LINKCC) $(PY_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
+  
+  platform: $(BUILDPYTHON) pybuilddir.txt
+ @@ -480,18 +480,6 @@ sharedmods: $(BUILDPYTHON) $(SYSCONFIGDA
+@@ -29,16 +29,16 @@ diff -up cpython-59223da36dec/Makefile.pre.in.no-static-lib cpython-59223da36dec
+  libpython$(LDVERSION).so: $(LIBRARY_OBJS)
+  	if test $(INSTSONAME) != $(LDLIBRARY); then \
+  		$(BLDSHARED) -Wl,-h$(INSTSONAME) -o $(INSTSONAME) $(LIBRARY_OBJS) $(MODLIBS) $(SHLIBS) $(LIBC) $(LIBM) $(LDLAST); \
+-@@ -581,7 +569,7 @@ Modules/Setup: $(srcdir)/Modules/Setup.d
++@@ -674,7 +674,7 @@ Modules/Setup: $(srcdir)/Modules/Setup.d
+  		echo "-----------------------------------------------"; \
+  	fi
+  
+--Modules/_testembed: Modules/_testembed.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
+-+Modules/_testembed: Modules/_testembed.o $(LDLIBRARY) $(PY3LIBRARY)
+- 	$(LINKCC) $(PY_LDFLAGS) $(LINKFORSHARED) -o $@ Modules/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
++-Programs/_testembed: Programs/_testembed.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
+++Programs/_testembed: Programs/_testembed.o $(LDLIBRARY) $(PY3LIBRARY)
++ 	$(LINKCC) $(PY_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
+  
+  ############################################################################
+-@@ -1155,18 +1143,6 @@ libainstall:	all python-config
++@@ -1354,18 +1354,6 @@ libainstall:	all python-config
+  		else	true; \
+  		fi; \
+  	done
+@@ -55,5 +55,5 @@ diff -up cpython-59223da36dec/Makefile.pre.in.no-static-lib cpython-59223da36dec
+ -		fi; \
+ -	fi
+  	$(INSTALL_DATA) Modules/config.c $(DESTDIR)$(LIBPL)/config.c
+- 	$(INSTALL_DATA) Modules/python.o $(DESTDIR)$(LIBPL)/python.o
++ 	$(INSTALL_DATA) Programs/python.o $(DESTDIR)$(LIBPL)/python.o
+  	$(INSTALL_DATA) $(srcdir)/Modules/config.c.in $(DESTDIR)$(LIBPL)/config.c.in
+diff --git a/00125-less-verbose-COUNT_ALLOCS.patch b/00125-less-verbose-COUNT_ALLOCS.patch
+index 8e441a2..fea9a4e 100644
+--- a/00125-less-verbose-COUNT_ALLOCS.patch
++++ b/00125-less-verbose-COUNT_ALLOCS.patch
+@@ -1,20 +1,21 @@
+-diff -up Python-2.7/Python/pythonrun.c.less-verbose-COUNT_ALLOCS Python-2.7/Python/pythonrun.c
+---- Python-2.7/Python/pythonrun.c.less-verbose-COUNT_ALLOCS	2010-08-17 14:49:33.321913909 -0400
+-+++ Python-2.7/Python/pythonrun.c	2010-08-17 14:54:48.750910403 -0400
+-@@ -470,7 +470,15 @@ Py_Finalize(void)
++diff -up Python-3.5.0b3/Python/pylifecycle.c.ms Python-3.5.0b3/Python/pylifecycle.c
++--- Python-3.5.0b3/Python/pylifecycle.c.ms	2015-07-08 10:12:40.470623896 +0200
+++++ Python-3.5.0b3/Python/pylifecycle.c	2015-07-08 10:13:50.141169162 +0200
++@@ -612,7 +612,16 @@ Py_Finalize(void)
+  
+      /* Debugging stuff */
+  #ifdef COUNT_ALLOCS
+ -    dump_counts(stdout);
+ +    /* This is a downstream Fedora modification.
+-+       The upstream default with COUNT_ALLOCS is to always dump the counts to
+-+       stdout on exit.  For our debug builds its useful to have the info from
+-+       COUNT_ALLOCS available, but the stdout info here gets in the way, so
+-+       we make it optional, wrapping it in an environment variable (modelled
+-+       on the other PYTHONDUMP* env variables):
+++    The upstream default with COUNT_ALLOCS is to always dump the counts to
+++    stdout on exit.  For our debug builds its useful to have the info from
+++    COUNT_ALLOCS available, but the stdout info here gets in the way, so
+++    we make it optional, wrapping it in an environment variable (modelled
+++    on the other PYTHONDUMP* env variables):
+ +    */
+ +    if (Py_GETENV("PYTHONDUMPCOUNTS"))
+ +        dump_counts(stdout);
+++
+  #endif
+      /* dump hash stats */
+      _PyHash_Fini();
+diff --git a/00134-fix-COUNT_ALLOCS-failure-in-test_sys.patch b/00134-fix-COUNT_ALLOCS-failure-in-test_sys.patch
+index afd8685..5fa9bd4 100644
+--- a/00134-fix-COUNT_ALLOCS-failure-in-test_sys.patch
++++ b/00134-fix-COUNT_ALLOCS-failure-in-test_sys.patch
+@@ -9,9 +9,9 @@ diff -up Python-3.3.0b2/Lib/test/test_sys.py.fix-COUNT_ALLOCS-failure-in-test_sy
+ +        if hasattr(sys, 'getcounts'):
+ +            s += struct.calcsize('3P2P')
+          check(int, s)
+-         # (PyTypeObject + PyNumberMethods + PyMappingMethods +
++         # (PyTypeObject + PyAsyncMethods + PyNumberMethods + PyMappingMethods +
+          #  PySequenceMethods + PyBufferProcs + 4P)
+-         s = vsize('P2n15Pl4Pn9Pn11PIP') + struct.calcsize('34P 3P 10P 2P 4P')
++         s = vsize('P2n17Pl4Pn9Pn11PIP') + struct.calcsize('34P 3P 3P 10P 2P 4P')
+          # Separate block for PyDictKeysObject with 4 entries
+          s += struct.calcsize("2nPn") + 4*struct.calcsize("n2P")
+ +        if hasattr(sys, 'getcounts'):
+diff --git a/00199-alter-tests-to-reflect-sslv3-disabled.patch b/00199-alter-tests-to-reflect-sslv3-disabled.patch
+index c7fb9ff..68df8d5 100644
+--- a/00199-alter-tests-to-reflect-sslv3-disabled.patch
++++ b/00199-alter-tests-to-reflect-sslv3-disabled.patch
+@@ -17,7 +17,7 @@ diff -up Python-3.4.2/Lib/test/test_ssl.py.ssl Python-3.4.2/Lib/test/test_ssl.py
+              try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_TLSv1, False)
+              if no_sslv2_implies_sslv3_hello():
+                  # No SSLv2 => client will use an SSLv3 hello on recent OpenSSLs
+--                try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv23, True,
++-                try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv23, 'SSLv3',
+ +                try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv23, False,
+                                     client_options=ssl.OP_NO_SSLv2)
+  
+@@ -29,20 +29,20 @@ diff -up Python-3.4.3/Lib/test/test_ssl.py.foo Python-3.4.3/Lib/test/test_ssl.py
+                              " SSL2 client to SSL23 server test unexpectedly failed:\n %s\n"
+                              % str(x))
+              if hasattr(ssl, 'PROTOCOL_SSLv3'):
+--                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True)
++-                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, 'SSLv3')
+ +                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, False)
+              try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv23, True)
+-             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, True)
++             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, 'TLSv1')
+  
+              if hasattr(ssl, 'PROTOCOL_SSLv3'):
+--                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True, ssl.CERT_OPTIONAL)
++-                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, 'SSLv3', ssl.CERT_OPTIONAL)
+ +                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, False, ssl.CERT_OPTIONAL)
+              try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv23, True, ssl.CERT_OPTIONAL)
+-             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, True, ssl.CERT_OPTIONAL)
++             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, 'TLSv1', ssl.CERT_OPTIONAL)
+  
+              if hasattr(ssl, 'PROTOCOL_SSLv3'):
+--                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True, ssl.CERT_REQUIRED)
++-                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, 'SSLv3', ssl.CERT_REQUIRED)
+ +                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, False, ssl.CERT_REQUIRED)
+              try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv23, True, ssl.CERT_REQUIRED)
+-             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, True, ssl.CERT_REQUIRED)
++             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, 'TLSv1', ssl.CERT_REQUIRED)
+  
+diff --git a/python3.spec b/python3.spec
+index efa0cda..a9a1906 100644
+--- a/python3.spec
++++ b/python3.spec
+@@ -14,12 +14,12 @@
+ # 4) python3-setuptools and python3-pip with with_rewheel set to 1
+ # 5) python3 with with_rewheel set to 1
+ 
+-%global with_rewheel 1
++%global with_rewheel 0
+ 
+-%global pybasever 3.4
++%global pybasever 3.5
+ 
+ # pybasever without the dot:
+-%global pyshortver 34
++%global pyshortver 35
+ 
+ %global pylibdir %{_libdir}/python%{pybasever}
+ %global dynload_dir %{pylibdir}/lib-dynload
+@@ -139,8 +139,8 @@
+ # ==================
+ Summary: Version 3 of the Python programming language aka Python 3000
+ Name: python3
+-Version: %{pybasever}.3
+-Release: 5%{?dist}
++Version: %{pybasever}.0
++Release: 1%{?dist}
+ License: Python
+ Group: Development/Languages
+ 
+@@ -208,7 +208,7 @@ BuildRequires: python3-pip
+ # Source code and patches
+ # =======================
+ 
+-Source: http://www.python.org/ftp/python/%{version}/Python-%{version}.tar.xz
++Source: http://www.python.org/ftp/python/%{version}/Python-%{version}b3.tar.xz
+ 
+ # Avoid having various bogus auto-generated Provides lines for the various
+ # python c modules' SONAMEs:
+@@ -319,7 +319,7 @@ Patch131: 00131-disable-tests-in-test_io.patch
+ # environment, which we set manually in the appropriate portion of the "check"
+ # phase below (and which potentially other python-* rpms could set, to reuse
+ # these unittest hooks in their own "check" phases)
+-Patch132: 00132-add-rpmbuild-hooks-to-unittest.patch
++# Patch132: 00132-add-rpmbuild-hooks-to-unittest.patch
+ 
+ # 00133 #
+ # 00133-skip-test_dl.patch is not relevant for python3: the "dl" module no
+@@ -732,7 +732,8 @@ Patch202: 00202-fix-undefined-behaviour-in-faulthandler.patch
+ Patch203: 00203-disable-threading-test-koji.patch
+ 
+ # openssl requires DH keys to be > 768bits
+-Patch204: 00204-increase-dh-keys-size.patch
++# FIXED UPSTREAM
++# Patch204: 00204-increase-dh-keys-size.patch
+ 
+ 
+ # (New patches go here ^^^)
+@@ -881,7 +882,7 @@ can load its own extensions.
+ # ======================================================
+ 
+ %prep
+-%setup -q -n Python-%{version}%{?prerel}
++%setup -q -n Python-%{version}b3%{?prerel}
+ chmod +x %{SOURCE1}
+ 
+ %if 0%{?with_systemtap}
+@@ -946,7 +947,10 @@ sed -r -i s/'_PIP_VERSION = "[0-9.]+"'/'_PIP_VERSION = "%{pip_version}"'/ Lib/en
+ %patch131 -p1
+ %endif
+ 
+-%patch132 -p1
++# This patch adds downstream specific decorators skipInRpmBuild,
++# expectedFailureInRpmBuild; I chose not to port it to Python 3.5.0b3,
++# as it appears they are not used any more
++#%patch132 -p1
+ # 00133: not for python3
+ %patch134 -p1
+ %patch135 -p1
+@@ -1021,9 +1025,9 @@ sed -r -i s/'_PIP_VERSION = "[0-9.]+"'/'_PIP_VERSION = "%{pip_version}"'/ Lib/en
+ %patch196 -p1
+ # 00197: upstream as of Python 3.4.2
+ %patch199 -p1
+-%patch202 -p1
++# 00202: upstream as of 3.5.0b3
+ %patch203 -p1
+-%patch204 -p1
++# 00204: upstream as of 3.5.0b3
+ 
+ # Currently (2010-01-15), http://docs.python.org/library is for 2.6, and there
+ # are many differences between 2.6 and the Python 3 library.
+@@ -1920,6 +1924,9 @@ rm -fr %{buildroot}
+ # ======================================================
+ 
+ %changelog
++* Wed Jul 08 2015 Matej Stuchlik <mstuchli@redhat.com> - 3.5.0-1
++- Update to 3.5.0b3
++
+ * Mon Jun 29 2015 Thomas Spura <tomspur@fedoraproject.org> - 3.4.3-4
+ - python3-devel: Require python-macros for version independant macros such as
+   python_provide. See fpc#281 and fpc#534.
