@@ -1,7 +1,7 @@
 <task name="/distribution/rebuild" role="STANDALONE">
     <params>
         <param name="SOURCE_REPO"
-               value="http://dl.fedoraproject.org/pub/fedora/linux/releases/21/Everything/source/SRPMS/" />
+               value="http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/source/SRPMS/" />
         <param name="MOCK_REPOS"
                value="https://copr.fedoraproject.org/coprs/mstuchli/Python3.5/repo/fedora-rawhide/" />
         <param name="SRPM_WHITELIST"
