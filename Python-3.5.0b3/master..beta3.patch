@@ -40,7 +40,7 @@ index 3200c15..5d92895 100644
  --- Python-3.3.0rc2/pyconfig.h.in.systemtap	2012-09-09 05:11:14.000000000 -0400
  +++ Python-3.3.0rc2/pyconfig.h.in	2012-09-10 09:17:21.120511781 -0400
 diff --git a/00102-lib64.patch b/00102-lib64.patch
-index db5fd95..28ccec0 100644
+index db5fd95..be67b9b 100644
 --- a/00102-lib64.patch
 +++ b/00102-lib64.patch
 @@ -35,7 +35,7 @@
@@ -73,7 +73,8 @@ index db5fd95..28ccec0 100644
 --            self.assertEqual(len(dirs), 2)
 +-            self.assertEqual(len(dirs), 1)
  -            wanted = os.path.join('xoxo', 'lib', 'python' + sys.version[:3],
- +            self.assertEqual(len(dirs), 3)
+-+            self.assertEqual(len(dirs), 3)
+++            self.assertEqual(len(dirs), 2)
  +            wanted = os.path.join('xoxo', 'lib64', 'python' + sys.version[:3],
                                     'site-packages')
               self.assertEqual(dirs[0], wanted)
@@ -192,6 +193,31 @@ index 8e441a2..fea9a4e 100644
   #endif
       /* dump hash stats */
       _PyHash_Fini();
+diff --git a/00132-add-rpmbuild-hooks-to-unittest.patch b/00132-add-rpmbuild-hooks-to-unittest.patch
+index 20930ac..041abce 100644
+--- a/00132-add-rpmbuild-hooks-to-unittest.patch
++++ b/00132-add-rpmbuild-hooks-to-unittest.patch
+@@ -9,10 +9,9 @@ diff -up Python-3.2.2/Lib/unittest/case.py.add-rpmbuild-hooks-to-unittest Python
+  import logging
+  import pprint
+  import re
+-@@ -101,6 +102,43 @@ def expectedFailure(func):
++@@ -101,5 +102,42 @@ def expectedFailure(func):
+          raise self.test_case.failureException(msg)
+  
+- 
+ +# Non-standard/downstream-only hooks for handling issues with specific test
+ +# cases:
+ +
+@@ -52,7 +51,7 @@ diff -up Python-3.2.2/Lib/unittest/case.py.add-rpmbuild-hooks-to-unittest Python
+ +
+  class _AssertRaisesBaseContext(_BaseTestCaseContext):
+  
+-     def __init__(self, expected, test_case, callable_obj=None,
++     def __init__(self, expected, test_case, expected_regex=None):
+ diff -up Python-3.2.2/Lib/unittest/__init__.py.add-rpmbuild-hooks-to-unittest Python-3.2.2/Lib/unittest/__init__.py
+ --- Python-3.2.2/Lib/unittest/__init__.py.add-rpmbuild-hooks-to-unittest	2011-09-03 12:16:44.000000000 -0400
+ +++ Python-3.2.2/Lib/unittest/__init__.py	2011-09-09 06:35:16.366568382 -0400
 diff --git a/00134-fix-COUNT_ALLOCS-failure-in-test_sys.patch b/00134-fix-COUNT_ALLOCS-failure-in-test_sys.patch
 index afd8685..5fa9bd4 100644
 --- a/00134-fix-COUNT_ALLOCS-failure-in-test_sys.patch
@@ -269,7 +295,7 @@ index 5fd11cc..aab0cc1 100644
      'lib2to3/tests/data/bom.py',
      'lib2to3/tests/data/crlf.py',
 diff --git a/python3.spec b/python3.spec
-index efa0cda..2a451e6 100644
+index efa0cda..445ccd6 100644
 --- a/python3.spec
 +++ b/python3.spec
 @@ -14,12 +14,12 @@
@@ -308,15 +334,6 @@ index efa0cda..2a451e6 100644
  
  # Avoid having various bogus auto-generated Provides lines for the various
  # python c modules' SONAMEs:
-@@ -319,7 +319,7 @@ Patch131: 00131-disable-tests-in-test_io.patch
- # environment, which we set manually in the appropriate portion of the "check"
- # phase below (and which potentially other python-* rpms could set, to reuse
- # these unittest hooks in their own "check" phases)
--Patch132: 00132-add-rpmbuild-hooks-to-unittest.patch
-+# Patch132: 00132-add-rpmbuild-hooks-to-unittest.patch
- 
- # 00133 #
- # 00133-skip-test_dl.patch is not relevant for python3: the "dl" module no
 @@ -732,7 +732,8 @@ Patch202: 00202-fix-undefined-behaviour-in-faulthandler.patch
  Patch203: 00203-disable-threading-test-koji.patch
  
@@ -345,19 +362,7 @@ index efa0cda..2a451e6 100644
  # 112: not for python3
  %patch113 -p1
  # 00114: Upstream as of Python 3.4.0.b2
-@@ -946,7 +947,10 @@ sed -r -i s/'_PIP_VERSION = "[0-9.]+"'/'_PIP_VERSION = "%{pip_version}"'/ Lib/en
- %patch131 -p1
- %endif
- 
--%patch132 -p1
-+# This patch adds downstream specific decorators skipInRpmBuild,
-+# expectedFailureInRpmBuild; I chose not to port it to Python 3.5.0b3,
-+# as it appears they are not used any more
-+#%patch132 -p1
- # 00133: not for python3
- %patch134 -p1
- %patch135 -p1
-@@ -1021,9 +1025,9 @@ sed -r -i s/'_PIP_VERSION = "[0-9.]+"'/'_PIP_VERSION = "%{pip_version}"'/ Lib/en
+@@ -1021,9 +1022,9 @@ sed -r -i s/'_PIP_VERSION = "[0-9.]+"'/'_PIP_VERSION = "%{pip_version}"'/ Lib/en
  %patch196 -p1
  # 00197: upstream as of Python 3.4.2
  %patch199 -p1
@@ -369,7 +374,7 @@ index efa0cda..2a451e6 100644
  
  # Currently (2010-01-15), http://docs.python.org/library is for 2.6, and there
  # are many differences between 2.6 and the Python 3 library.
-@@ -1920,6 +1924,9 @@ rm -fr %{buildroot}
+@@ -1920,6 +1921,9 @@ rm -fr %{buildroot}
  # ======================================================
  
  %changelog
